@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>GO FOR IT</title>
+
+  <!-- Torna a app instalável no telemóvel (PWA) -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#FF6B35" />
+  <link rel="icon" href="icons/icon-512.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Fontes: Poppins (padrão) + Fredoka e Space Grotesk (opções no ecrã de Ajustes) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Cabeçalho: nome da app + streak atual -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo-mark">🔥</div>
+      <h1 class="logo">GO FOR <b>IT</b></h1>
+    </div>
+    <div class="streak-badge" id="streak-badge">
+      <span class="streak-fire" id="streak-fire">🔥</span>
+      <span class="streak-info">
+        <span id="streak-count">0</span>
+        <span class="streak-nivel-nome" id="streak-nivel">Sem streak</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Área principal: aqui vai viver o ecrã ativo (checklist diária, goals do mês, feedback, etc.) -->
+  <main id="app-content" class="app-content">
+    <p class="placeholder-text">
+      Esqueleto da app pronto. 🎉<br />
+      Próxima etapa: construir o ecrã de definição de goals mensais e a checklist diária.
+    </p>
+  </main>
+
+  <!-- Navegação inferior, estilo app mobile -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="calendario">📅<br />Calendário</button>
+    <button class="nav-btn" data-view="goals">🎯<br />Goals</button>
+    <button class="nav-btn" data-view="checkin">📋<br />Check-in</button>
+    <button class="nav-btn" data-view="feedback">📊<br />Feedback</button>
+    <button class="nav-btn" data-view="ajustes">⚙️<br />Ajustes</button>
+  </nav>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

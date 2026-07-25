@@ -1,0 +1,1133 @@
+/* ===== GO FOR IT — Estilos ===== */
+/* Cores e fontes definidas em docs/design-system.md */
+
+:root {
+  /* Paleta escura trazida do protótipo go-for-it-app_7.html — mais "premium"
+     que o roxo chapado original, com gradiente radial em vez de cor sólida. */
+  --bg-principal: #0F0D18;
+  --bg-card: #1E1836;
+  --cor-destaque: #FF6B35;
+  --cor-destaque-2: #FF3D7F; /* 2ª cor dos gradientes de destaque (botões, toast, tabs ativas) */
+  --cor-sucesso: #B4FF39;
+  --cor-falha: #FF4C6A;
+  --texto-principal: #FBF8FF;
+  --texto-secundario: #A79FC7;
+  --texto-apagado: #6E6390;
+  --borda: #332B56;
+  --bg-card-hi: #271F45;
+
+  /* Ligados ao ecrã de Ajustes — trocam em tempo real via JS (ver aplicarAjustes em app.js) */
+  --font-principal: 'Poppins', sans-serif;
+  --fs-scale: 1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-principal);
+  background: radial-gradient(circle at 50% -10%, #241a3d 0%, var(--bg-principal) 55%, var(--bg-principal) 100%);
+  color: var(--texto-principal);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Tamanho do texto (Ajustes): "zoom" escala tudo de forma proporcional sem
+     ter de reescrever cada font-size em px para rem. Suportado em Chrome/Safari/
+     Edge (também nos navegadores de telemóvel mais comuns); não tem efeito no
+     Firefox, que ainda não implementa esta propriedade. */
+  zoom: var(--fs-scale);
+}
+
+/* Cabeçalho */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFC93C, var(--cor-destaque), var(--cor-destaque-2));
+  font-size: 18px;
+  box-shadow: 0 4px 14px -2px rgba(255, 107, 53, 0.55);
+  flex: none;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 16px;
+  transition: box-shadow 0.4s ease, background 0.4s ease;
+}
+
+.streak-fire {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.streak-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.streak-nivel-nome {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Cada nível de fogo tem mais brilho/movimento do que o anterior — dá para
+   "sentir" a progressão só de olhar para o badge, sem ler o número. */
+.streak-badge.nivel-faisca {
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.35);
+}
+
+.streak-badge.nivel-chama {
+  box-shadow: 0 0 14px rgba(255, 107, 53, 0.5);
+}
+
+.streak-badge.nivel-fogueira {
+  box-shadow: 0 0 18px rgba(255, 107, 53, 0.65);
+  animation: pulsar-fogo 2.2s ease-in-out infinite;
+}
+
+.streak-badge.nivel-incendio {
+  box-shadow: 0 0 22px rgba(255, 76, 53, 0.75);
+  animation: pulsar-fogo 1.7s ease-in-out infinite;
+}
+
+.streak-badge.nivel-lendario {
+  background: linear-gradient(135deg, var(--bg-card), var(--cor-destaque-2));
+  box-shadow: 0 0 28px rgba(255, 217, 61, 0.85);
+  animation: pulsar-fogo 1.2s ease-in-out infinite;
+}
+
+@keyframes pulsar-fogo {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* Toca quando se ganha um fogo novo — dá um "salto" de celebração ao badge. */
+.streak-badge.badge-comemorar {
+  animation: badge-comemorar 0.6s ease;
+}
+
+@keyframes badge-comemorar {
+  0% { transform: scale(1) rotate(0); }
+  30% { transform: scale(1.35) rotate(-6deg); }
+  60% { transform: scale(0.95) rotate(4deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Conteúdo principal */
+.app-content {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.view-checklist,
+.view-goals,
+.view-calendario {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+
+.view-titulo {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.placeholder-text {
+  font-size: 20px;
+  color: var(--texto-secundario);
+  line-height: 1.6;
+}
+
+.placeholder-text-small {
+  font-size: 16px;
+  color: var(--texto-secundario);
+  padding: 12px 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
+  color: var(--texto-principal);
+  border: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 22px;
+  border-radius: 14px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 15px;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 15px;
+  background: var(--cor-destaque);
+  color: #fff;
+  border: none;
+  margin-top: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 8px 20px -6px rgba(255, 107, 53, 0.5);
+}
+
+/* Lista de goals — checklist diária (estilo "tick-card" do protótipo) */
+.goal-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.goal-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  padding: 15px;
+  border-radius: 16px;
+  cursor: pointer;
+  min-height: 48px;
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.goal-item:active {
+  transform: scale(0.98);
+}
+
+.goal-item.cumprido {
+  background: var(--bg-card-hi);
+  border-color: var(--cor-destaque);
+}
+
+/* A checkbox é um quadrado desenhado a CSS — quando cumprido, ganha um
+   gradiente de fundo e o ✓ (vindo do HTML) aparece a branco. */
+.goal-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  border: 2px solid var(--texto-apagado);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: transparent;
+}
+
+.goal-item.cumprido .goal-check {
+  background: linear-gradient(135deg, var(--cor-destaque), var(--cor-destaque-2));
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Ao marcar/desmarcar um goal, o item dá um pequeno "salto" e o ✅ aparece
+   com um efeito de entrada — feedback visual imediato, sem precisar de ler nada. */
+.goal-item.anim-marcado {
+  animation: goal-pop 0.4s ease;
+}
+
+.goal-item.anim-marcado .goal-check {
+  animation: check-pop 0.4s ease;
+}
+
+@keyframes goal-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.05); }
+  65% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes check-pop {
+  0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.3) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.goal-texto {
+  flex: 1;
+  word-break: break-word;
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.goal-item.cumprido .goal-texto {
+  color: var(--texto-secundario);
+  text-decoration: line-through;
+  text-decoration-color: var(--texto-apagado);
+}
+
+/* Pill de tipo de goal — mesmas 3 cores em toda a app (checklist, goals, check-in) */
+.goal-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.goal-badge.diario {
+  background: rgba(255, 107, 53, 0.18);
+  color: var(--cor-destaque);
+}
+
+.goal-badge.semanal {
+  background: rgba(180, 255, 57, 0.16);
+  color: var(--cor-sucesso);
+}
+
+.goal-badge.mensal {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--texto-secundario);
+}
+
+.mensagem-sucesso {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cor-sucesso);
+}
+
+/* Ecrã de Goals — cartões, formulário e dicas, igual ao protótipo */
+.goal-list-edit {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.goal-card {
+  background: var(--bg-card-hi);
+  border: 1px solid var(--borda);
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.goal-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.goal-card-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.goal-card-name {
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--texto-principal);
+}
+
+.goal-card-remove {
+  background: none;
+  border: none;
+  color: var(--cor-falha);
+  font-size: 18px;
+  font-weight: 800;
+  flex: none;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.goal-card-sub {
+  color: var(--texto-secundario);
+  font-size: 13px;
+  margin-top: 9px;
+}
+
+.goal-card-hint {
+  font-size: 10.5px;
+  color: var(--texto-apagado);
+  margin-top: 5px;
+}
+
+.day1-banner {
+  background: linear-gradient(135deg, rgba(255, 201, 60, 0.16), rgba(255, 61, 127, 0.14));
+  border: 1px solid var(--cor-destaque);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin: 4px 0 16px;
+}
+
+.day1-banner .dia1-titulo {
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.day1-banner .dia1-texto {
+  font-size: 12.5px;
+  color: var(--texto-secundario);
+  line-height: 1.4;
+}
+
+.form-novo-goal {
+  margin-top: 16px;
+}
+
+.form-novo-goal input[type="text"] {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  color: var(--texto-principal);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 13px 14px;
+  border-radius: 13px;
+  min-height: 48px;
+}
+
+.form-novo-goal input::placeholder {
+  color: var(--texto-apagado);
+}
+
+.form-novo-goal input:focus {
+  outline: none;
+  border-color: var(--cor-destaque);
+}
+
+.freq-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.freq-btn {
+  flex: 1;
+  padding: 11px 4px;
+  border-radius: 13px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--borda);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.freq-btn.active {
+  border-color: var(--cor-destaque);
+  color: var(--texto-principal);
+}
+
+.qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 13px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.qty-label {
+  font-size: 12.5px;
+  color: var(--texto-secundario);
+  font-weight: 600;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--bg-card-hi);
+  border: 1px solid var(--borda);
+  color: var(--texto-principal);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.qty-val {
+  font-weight: 800;
+  min-width: 34px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.limit-note {
+  font-size: 12px;
+  color: var(--texto-apagado);
+  margin-top: 10px;
+  text-align: right;
+}
+
+.tip-card {
+  background: linear-gradient(135deg, rgba(155, 61, 255, 0.14), rgba(255, 61, 127, 0.1));
+  border: 1px solid #9B3DFF;
+  border-radius: 18px;
+  padding: 15px 16px;
+  margin-top: 20px;
+}
+
+.tip-card .tip-titulo {
+  font-weight: 800;
+  font-size: 13.5px;
+  margin-bottom: 8px;
+}
+
+.tip-card ul {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tip-card li {
+  font-size: 12.5px;
+  color: var(--texto-secundario);
+  line-height: 1.4;
+}
+
+/* Ecrã de feedback */
+.view-feedback {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+
+.feedback-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 0;
+  margin: 0 0 18px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  color: var(--texto-apagado);
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
+  color: #fff;
+}
+
+/* Grelha de estatísticas — 4 números principais, igual ao protótipo */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.stat-box .stat-valor {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.stat-box .stat-label {
+  font-size: 11.5px;
+  color: var(--texto-apagado);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* Faixa horizontal com os 6 níveis de fogo — mostra onde estás na progressão */
+.level-strip {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 18px;
+  overflow-x: auto;
+}
+
+.level-chip {
+  flex: none;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texto-apagado);
+  white-space: nowrap;
+}
+
+.level-chip.reached {
+  background: var(--bg-card-hi);
+  border-color: var(--cor-destaque);
+  color: var(--texto-principal);
+}
+
+.level-chip.current {
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Últimas 6 semanas, num relance */
+.weeks-row {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+
+.week-chip {
+  flex: 1;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--texto-apagado);
+  line-height: 1.6;
+}
+
+.week-chip.ok {
+  background: var(--bg-card-hi);
+  border-color: var(--cor-destaque);
+  color: var(--texto-principal);
+}
+
+.feedback-card {
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+
+.feedback-linha-titulo {
+  font-size: 14px;
+  color: var(--texto-secundario);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.feedback-numero {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--texto-principal);
+  line-height: 1;
+}
+
+.feedback-numero-total {
+  font-size: 18px;
+  color: var(--texto-secundario);
+  font-weight: 600;
+}
+
+.feedback-legenda {
+  font-size: 14px;
+  color: var(--texto-secundario);
+  margin-top: 6px;
+}
+
+.feedback-taxa {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Calendário */
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cal-header .view-titulo {
+  margin-bottom: 0;
+}
+
+.cal-nav {
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  color: var(--texto-principal);
+  font-size: 16px;
+  font-weight: 800;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.cal-dia-nome {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--texto-apagado);
+  padding-bottom: 4px;
+}
+
+.cal-dia {
+  aspect-ratio: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  color: var(--texto-secundario);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cal-vazio {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.cal-dia-numero {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* O ícone ✅/❌ deixou de aparecer como texto à parte — o estado do dia
+   já se vê pela cor de fundo da célula, igual ao protótipo. */
+.cal-dia-icone {
+  display: none;
+}
+
+.cal-dia.estado-completo {
+  background: linear-gradient(135deg, var(--cor-destaque), var(--cor-destaque-2));
+  border-color: transparent;
+  color: #fff;
+}
+
+.cal-dia.estado-incompleto {
+  background: rgba(255, 84, 112, 0.12);
+  color: var(--cor-falha);
+  border-color: rgba(255, 84, 112, 0.3);
+}
+
+.cal-dia.estado-futuro {
+  opacity: 0.3;
+}
+
+.cal-dia.estado-sem-goals {
+  opacity: 0.45;
+}
+
+.cal-dia.cal-hoje {
+  box-shadow: 0 0 0 2px #FFC93C;
+}
+
+.cal-dia.cal-selecionado {
+  box-shadow: 0 0 0 2px var(--cor-destaque-2);
+}
+
+/* Legenda por baixo da grelha — explica as cores sem precisar de ícones */
+.cal-legenda {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.cal-legenda span {
+  font-size: 10.5px;
+  color: var(--texto-apagado);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cal-legenda i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Detalhe do dia — secção solta por baixo do calendário, sem cartão a
+   envolver tudo (só cada goal é que é um cartão — igual ao protótipo). */
+.detalhe-card {
+  margin-top: 20px;
+}
+
+.detalhe-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.detalhe-data {
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.btn-fechar {
+  background: none;
+  border: none;
+  color: var(--texto-secundario);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.goal-desativado {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.goal-etiqueta {
+  display: block;
+  font-size: 12px;
+  color: var(--texto-apagado);
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+/* Ecrã de Check-in semanal */
+.view-checkin {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+
+.checkin-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.checkin-item {
+  background: var(--bg-card);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 15px;
+}
+
+.checkin-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.checkin-nome {
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+/* Pill de estado — mesma linguagem visual do goal-badge, mas com semântica
+   de resultado (cumprido / a decorrer / falhado) em vez de tipo de goal. */
+.checkin-status {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.checkin-status.ok {
+  background: rgba(180, 255, 57, 0.16);
+  color: var(--cor-sucesso);
+}
+
+.checkin-status.pending {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto-secundario);
+}
+
+.checkin-status.fail {
+  background: rgba(255, 76, 106, 0.14);
+  color: var(--cor-falha);
+}
+
+.checkin-sub {
+  color: var(--texto-apagado);
+  font-size: 12px;
+  margin-top: 7px;
+}
+
+/* Botões de correção manual — o check-in confirma-se sozinho (ver storage.js),
+   por isso ficam pequenos e discretos, só para quando é preciso corrigir. */
+.checkin-botoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.checkin-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--borda);
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.checkin-btn.certo.selecionado {
+  background: rgba(180, 255, 57, 0.16);
+  border-color: var(--cor-sucesso);
+  color: var(--cor-sucesso);
+}
+
+.checkin-btn.errado.selecionado {
+  background: rgba(255, 76, 106, 0.16);
+  border-color: var(--cor-falha);
+  color: var(--cor-falha);
+}
+
+.checkin-subtitulo {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 22px;
+  margin-bottom: 4px;
+}
+
+.checkin-progresso {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.checkin-progresso-barra {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-sucesso));
+  border-radius: 999px;
+}
+
+.feedback-aviso {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--cor-falha);
+}
+
+/* Toast de celebração */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  transform: translate(-50%, 20px);
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
+  color: var(--texto-principal);
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  max-width: 90%;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.toast-visivel {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Navegação inferior */
+.bottom-nav {
+  display: flex;
+  background: var(--bg-card);
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+}
+
+.nav-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--texto-secundario);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.nav-btn.active {
+  color: var(--cor-destaque);
+}
+
+/* ===== Ecrã de Ajustes (fonte, cor de destaque, tamanho do texto) ===== */
+.view-ajustes {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+
+.ajustes-secao-titulo {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-secundario);
+  margin: 22px 0 12px;
+}
+
+.opcao-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 10px;
+}
+
+.opcao-card {
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.opcao-card.active {
+  border-color: var(--cor-destaque);
+  box-shadow: 0 0 0 1px var(--cor-destaque);
+}
+
+.opcao-preview {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.opcao-ponto {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.opcao-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texto-secundario);
+}
+
+.opcao-card.active .opcao-label {
+  color: var(--texto-principal);
+}
+
+.escala-row {
+  display: flex;
+  gap: 8px;
+}
+
+.escala-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 13px;
+  background: var(--bg-card);
+  border: none;
+  color: var(--texto-secundario);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.escala-btn.active {
+  background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
+  color: var(--texto-principal);
+}
