@@ -5,7 +5,12 @@
  * Por agora, guarda em cache os ficheiros essenciais.
  */
 
-const CACHE_NAME = "goforit-cache-v1";
+/**
+ * IMPORTANTE — sobe este número sempre que publicares uma versão nova da app.
+ * É isso que faz o telemóvel deitar fora a cópia antiga e ir buscar a nova.
+ */
+const CACHE_NAME = "goforit-cache-v2";
+
 const FICHEIROS_PARA_CACHE = [
   "./index.html",
   "./css/style.css",
@@ -19,13 +24,46 @@ const FICHEIROS_PARA_CACHE = [
 
 self.addEventListener("install", (evento) => {
   evento.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(FICHEIROS_PARA_CACHE))
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(FICHEIROS_PARA_CACHE))
+      // Não fica à espera que todas as janelas da app fechem para assumir o
+      // controlo — senão uma versão nova podia demorar dias a entrar.
+      .then(() => self.skipWaiting())
   );
 });
 
+// Ao ativar, apaga as caches de versões anteriores (goforit-cache-v1, etc).
+self.addEventListener("activate", (evento) => {
+  evento.waitUntil(
+    caches
+      .keys()
+      .then((nomes) => Promise.all(nomes.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
+  );
+});
+
+/**
+ * Estratégia: primeiro a rede, cache só como plano B.
+ *
+ * A versão anterior fazia o contrário (cache primeiro) e nunca mais ia à
+ * rede — resultado: publicavam-se versões novas da app e o telemóvel
+ * continuava a mostrar a antiga para sempre. Assim, com internet vês sempre
+ * a versão mais recente; sem internet a app continua a abrir, com a última
+ * cópia guardada.
+ */
 self.addEventListener("fetch", (evento) => {
+  if (evento.request.method !== "GET") return;
+
   evento.respondWith(
-    caches.match(evento.request).then((resposta) => resposta || fetch(evento.request))
+    fetch(evento.request)
+      .then((resposta) => {
+        // Guarda uma cópia fresca para quando não houver rede.
+        const copia = resposta.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, copia));
+        return resposta;
+      })
+      .catch(() => caches.match(evento.request))
   );
 });
 
