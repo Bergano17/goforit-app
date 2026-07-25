@@ -875,6 +875,17 @@ body {
   margin-top: 5px;
 }
 
+/* Um goal semanal/mensal que já não tem folga no prazo — passou a contar
+   para o dia de hoje. Fica com um contorno de aviso para se ver logo. */
+.goal-obrigatorio {
+  color: var(--cor-falha);
+  font-weight: 800;
+}
+
+.goal-item.goal-obrigatorio-hoje {
+  border-color: var(--cor-falha);
+}
+
 /* Ecrã de Check-in semanal */
 .view-checkin {
   width: 100%;

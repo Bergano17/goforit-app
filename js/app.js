@@ -247,6 +247,8 @@ function renderDetalheDiaHtml(dataISO) {
   const itensHtml = goals
     .map((goal) => {
       const cumprido = checklist[goal.nome] === true;
+      const obrigatorio = goalObrigatorioNoDia(goal, dataISO);
+
       let sub = "";
       if (goal.tipo === "semanal") {
         const contagem = contarOcorrenciasSemana(goal.nome, segundaDaSemana);
@@ -255,16 +257,25 @@ function renderDetalheDiaHtml(dataISO) {
         const progresso = calcularProgressoMensal(goal.nome, dataISO.slice(0, 7));
         sub = `${Math.min(progresso, goal.meta)}/${goal.meta} dias este mês`;
       }
+
+      // Avisa quando um goal semanal/mensal deixou de ter folga e passou a
+      // contar para o dia — a pressão vê-se a chegar, não cai de surpresa.
+      // (Já cumprido não precisa de aviso nenhum.)
+      const marcaObrigatorio =
+        obrigatorio && !cumprido && goal.tipo !== "diario"
+          ? ` <span class="goal-obrigatorio">⚠️ obrigatório hoje</span>`
+          : "";
+
       const animar = goal.nome === ultimoGoalTocado ? "anim-marcado" : "";
 
       // O ✓ está sempre no HTML — é a CSS (cor transparente vs. branca) que o
       // esconde ou mostra consoante o item está cumprido ou não.
       return `
-        <li class="goal-item ${cumprido ? "cumprido" : ""} ${editavel ? "" : "goal-desativado"} ${animar}" data-goal="${escapeHtml(goal.nome)}">
+        <li class="goal-item ${cumprido ? "cumprido" : ""} ${obrigatorio && !cumprido ? "goal-obrigatorio-hoje" : ""} ${editavel ? "" : "goal-desativado"} ${animar}" data-goal="${escapeHtml(goal.nome)}">
           <span class="goal-check">✓</span>
           <span class="goal-texto">
             ${escapeHtml(goal.nome)}<span class="goal-badge ${goal.tipo}">${NOMES_TIPO[goal.tipo]}</span>
-            ${sub ? `<span class="goal-etiqueta">${sub}</span>` : ""}
+            ${sub ? `<span class="goal-etiqueta">${sub}${marcaObrigatorio}</span>` : marcaObrigatorio ? `<span class="goal-etiqueta">${marcaObrigatorio}</span>` : ""}
           </span>
         </li>
       `;
@@ -306,14 +317,9 @@ function ligarDetalheDia() {
 
       const agoraCumprido = obterChecklistDoDia(diaSelecionadoISO)[nomeGoal] === true;
 
-      if (agoraCumprido && goal.tipo !== "semanal" && checklistCompletaNoDia(diaSelecionadoISO)) {
-        celebrar("🎉 Dia completo! Continua assim.");
-      }
-
       if (agoraCumprido && goal.tipo === "semanal") {
         const segunda = obterInicioDaSemanaISO(diaSelecionadoISO);
-        const contagem = contarOcorrenciasSemana(nomeGoal, segunda);
-        if (contagem >= goal.meta) {
+        if (contarOcorrenciasSemana(nomeGoal, segunda) >= goal.meta) {
           celebrar(`🎉 Atingiste a meta semanal de "${nomeGoal}"!`);
         }
       }
@@ -325,8 +331,12 @@ function ligarDetalheDia() {
         }
       }
 
+      if (agoraCumprido && checklistCompletaNoDia(diaSelecionadoISO)) {
+        celebrar("🎉 Dia completo! Continua assim.");
+      }
+
       if (ganhouFogo) {
-        celebrar("🔥 Ganhaste um fogo esta semana!");
+        celebrar("🔥 Mais um dia de fogo — a corrente continua!");
         comemorarBadge();
       }
 
@@ -338,9 +348,12 @@ function ligarDetalheDia() {
 /* ===== Ecrã: Goals do mês ===== */
 const LIMITE_GOALS = 6;
 // Estado do formulário de "novo goal" — vive fora do render porque o utilizador
-// pode trocar de tipo/quantidade várias vezes antes de submeter.
+// pode trocar de tipo/quantidade várias vezes antes de submeter, e cada uma
+// dessas trocas volta a desenhar o ecrã todo. Se o texto não fosse guardado
+// aqui, perdia-se o que já estava escrito a cada clique no +/− ou no tipo.
 let novoGoalTipo = "diario";
 let novoGoalMeta = 3;
+let novoGoalTexto = "";
 
 function metaMaxima(tipo, mesISO) {
   if (tipo === "semanal") return 7;
@@ -416,7 +429,7 @@ function renderGoals() {
         podeAdicionar
           ? `
       <form id="form-novo-goal" class="form-novo-goal">
-        <input type="text" id="input-novo-goal" placeholder="Ex: Beber 2L de água" maxlength="60" />
+        <input type="text" id="input-novo-goal" placeholder="Ex: Beber 2L de água" maxlength="60" value="${escapeHtml(novoGoalTexto)}" />
         <div class="freq-row">${freqBtnsHtml}</div>
         <div id="qty-row-wrap">${qtyRowHtml}</div>
         <button type="submit" class="btn-add">Adicionar</button>
@@ -436,6 +449,12 @@ function renderGoals() {
   `;
 
   if (podeAdicionar) {
+    // Mantém o texto guardado a cada tecla, para sobreviver aos re-renders.
+    const inputNovo = document.getElementById("input-novo-goal");
+    inputNovo.addEventListener("input", () => {
+      novoGoalTexto = inputNovo.value;
+    });
+
     document.querySelectorAll(".freq-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         novoGoalTipo = btn.dataset.tipo;
@@ -459,11 +478,13 @@ function renderGoals() {
 
     document.getElementById("form-novo-goal").addEventListener("submit", (e) => {
       e.preventDefault();
-      const input = document.getElementById("input-novo-goal");
-      if (!input.value.trim()) return;
+      if (!inputNovo.value.trim()) return;
 
       const meta = novoGoalTipo === "diario" ? null : novoGoalMeta;
-      adicionarGoal(input.value, novoGoalTipo, meta, mesISO);
+      adicionarGoal(inputNovo.value, novoGoalTipo, meta, mesISO);
+
+      // Só aqui é que o formulário se limpa: o goal já foi mesmo criado.
+      novoGoalTexto = "";
       novoGoalTipo = "diario";
       novoGoalMeta = 3;
       renderGoals();
@@ -478,13 +499,15 @@ function renderGoals() {
   });
 }
 
-/* ===== Ecrã: Check-in (goals semanais + progresso dos mensais) ===== */
+/* ===== Ecrã: Check-in (progresso das metas semanais e mensais) =====
+ * Já não há respostas manuais: as metas medem-se pelos ticks no calendário.
+ * Este ecrã é só o sítio onde vês, num relance, quanto falta em cada prazo.
+ */
 function renderCheckin() {
   const segundaISO = obterInicioDaSemanaISO();
-  const mesISO = segundaISO.slice(0, 7);
+  const mesISO = obterMesAtualISO();
   const goalsSemanais = obterGoalsPorTipo(mesISO, "semanal");
   const goalsMensais = obterGoalsPorTipo(mesISO, "mensal");
-  const respostas = obterCheckinSemana(segundaISO);
 
   if (goalsSemanais.length === 0 && goalsMensais.length === 0) {
     appContent.innerHTML = `
@@ -497,55 +520,45 @@ function renderCheckin() {
     return;
   }
 
-  const itensSemanaisHtml = goalsSemanais
-    .map((goal) => {
-      const resposta = respostas[goal.nome]; // true / false / undefined
-      const contagem = contarOcorrenciasSemana(goal.nome, segundaISO);
+  // Semanais e mensais mostram-se agora exatamente da mesma forma: progresso,
+  // barra, e quantos dias ainda restam no prazo.
+  function itemProgressoHtml(goal, feitos, restantes, unidadePrazo) {
+    const percentagem = Math.min(100, Math.round((feitos / goal.meta) * 100));
+    const atingiu = feitos >= goal.meta;
+    const falta = goal.meta - feitos;
+    const apertado = !atingiu && falta >= restantes;
 
-      let statusClasse = "pending";
-      let statusTexto = "A decorrer";
-      if (resposta === true) {
-        statusClasse = "ok";
-        statusTexto = "✅ Cumprido automaticamente";
-      } else if (resposta === false) {
-        statusClasse = "fail";
-        statusTexto = "❌ Não foi desta vez";
-      }
+    let estado;
+    if (atingiu) estado = `<span class="checkin-status ok">✅ Meta atingida</span>`;
+    else if (apertado) estado = `<span class="checkin-status fail">⚠️ Sem folga — obrigatório</span>`;
+    else estado = `<span class="checkin-status pending">${restantes} ${unidadePrazo} restantes</span>`;
 
-      return `
-        <div class="checkin-item">
-          <div class="checkin-row-top">
-            <span class="checkin-nome">${escapeHtml(goal.nome)}</span>
-            <span class="checkin-status ${statusClasse}">${statusTexto}</span>
-          </div>
-          <p class="checkin-sub">Registaste ${Math.min(contagem, goal.meta)}/${goal.meta} vezes esta semana</p>
-          <div class="checkin-botoes">
-            <button class="checkin-btn certo ${resposta === true ? "selecionado" : ""}" data-goal="${escapeHtml(goal.nome)}" data-valor="true">Corrigir p/ cumprido</button>
-            <button class="checkin-btn errado ${resposta === false ? "selecionado" : ""}" data-goal="${escapeHtml(goal.nome)}" data-valor="false">Corrigir p/ não cumprido</button>
-          </div>
+    return `
+      <div class="checkin-item">
+        <div class="checkin-row-top">
+          <span class="checkin-nome">${escapeHtml(goal.nome)}</span>
+          ${estado}
         </div>
-      `;
-    })
+        <p class="checkin-sub">${Math.min(feitos, goal.meta)}/${goal.meta}${atingiu ? " 🎉" : ""}</p>
+        <div class="checkin-progresso">
+          <div class="checkin-progresso-barra" style="width: ${percentagem}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  const hoje = obterDataHojeISO();
+
+  const itensSemanaisHtml = goalsSemanais
+    .map((goal) =>
+      itemProgressoHtml(goal, contarOcorrenciasSemana(goal.nome, segundaISO), diasAteFimDaSemana(hoje), "dias")
+    )
     .join("");
 
   const itensMensaisHtml = goalsMensais
-    .map((goal) => {
-      const progresso = calcularProgressoMensal(goal.nome, mesISO);
-      const percentagem = Math.min(100, Math.round((progresso / goal.meta) * 100));
-      const atingiu = progresso >= goal.meta;
-
-      return `
-        <div class="checkin-item">
-          <div class="checkin-row-top">
-            <span class="checkin-nome">${escapeHtml(goal.nome)}</span>
-            <span class="checkin-sub" style="margin-top:0;">${progresso}/${goal.meta} dias${atingiu ? " 🎉" : ""}</span>
-          </div>
-          <div class="checkin-progresso">
-            <div class="checkin-progresso-barra" style="width: ${percentagem}%"></div>
-          </div>
-        </div>
-      `;
-    })
+    .map((goal) =>
+      itemProgressoHtml(goal, calcularProgressoMensal(goal.nome, mesISO), diasAteFimDoMes(hoje), "dias")
+    )
     .join("");
 
   appContent.innerHTML = `
@@ -555,33 +568,17 @@ function renderCheckin() {
 
       ${goalsSemanais.length > 0 ? `
         <h3 class="checkin-subtitulo">Metas semanais</h3>
-        <p class="placeholder-text-small">Confirmam-se sozinhas quando as atinges no calendário. Usa os botões só para corrigir.</p>
+        <p class="placeholder-text-small">Marcam-se no calendário, quando te der jeito. Só se tornam obrigatórias se os dias que faltam já não chegarem.</p>
         <div class="checkin-lista">${itensSemanaisHtml}</div>
       ` : ""}
 
       ${goalsMensais.length > 0 ? `
         <h3 class="checkin-subtitulo">Metas mensais</h3>
-        <p class="placeholder-text-small">Marcam-se todos os dias no calendário — aqui é só o progresso.</p>
+        <p class="placeholder-text-small">Tens o mês todo para as cumprir — só apertam no fim, se ainda faltarem dias.</p>
         <div class="checkin-lista">${itensMensaisHtml}</div>
       ` : ""}
     </div>
   `;
-
-  appContent.querySelectorAll(".checkin-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const valor = btn.dataset.valor === "true";
-      const ganhouFogo = responderCheckin(btn.dataset.goal, valor, segundaISO);
-      atualizarStreakBadge();
-
-      if (valor) celebrar(`🎉 Parabéns por cumprires "${btn.dataset.goal}" esta semana!`);
-      if (ganhouFogo) {
-        celebrar("🔥 Ganhaste um fogo esta semana!");
-        comemorarBadge();
-      }
-
-      renderCheckin();
-    });
-  });
 }
 
 /* ===== Ecrã: Feedback (semanal / mensal) ===== */
@@ -610,10 +607,10 @@ function ligarTabs() {
   });
 }
 
-// Limiares (em semanas) usados por obterNivelFogo() em storage.js — repetidos
+// Limiares (em dias) usados por obterNivelFogo() em storage.js — repetidos
 // aqui só para desenhar a faixa de níveis. Se um dia mudares os limiares lá,
 // muda também esta lista para os dois ficarem alinhados.
-const LIMIARES_NIVEL = [0, 1, 3, 7, 14, 30];
+const LIMIARES_NIVEL = [0, 1, 10, 30, 60, 100];
 
 // Cabeçalho comum às duas tabs: grelha de estatísticas + faixa de níveis.
 function renderStatGridENiveis(streakAtual, streakRecorde, monthPct) {
@@ -621,7 +618,7 @@ function renderStatGridENiveis(streakAtual, streakRecorde, monthPct) {
 
   const statGridHtml = `
     <div class="stat-grid">
-      <div class="stat-box"><p class="stat-valor">${streakAtual} 🔥</p><p class="stat-label">SEMANAS DE STREAK</p></div>
+      <div class="stat-box"><p class="stat-valor">${streakAtual} 🔥</p><p class="stat-label">DIAS DE STREAK</p></div>
       <div class="stat-box"><p class="stat-valor">${streakRecorde} 🔥</p><p class="stat-label">MELHOR STREAK</p></div>
       <div class="stat-box"><p class="stat-valor">${monthPct}%</p><p class="stat-label">DIAS COMPLETOS (MÊS)</p></div>
       <div class="stat-box"><p class="stat-valor">${nivel.icone}</p><p class="stat-label">NÍVEL: ${nivel.nome.toUpperCase()}</p></div>
@@ -643,11 +640,10 @@ function renderStatGridENiveis(streakAtual, streakRecorde, monthPct) {
 function renderFeedbackSemanal() {
   const r = calcularResumoSemanal();
   const rMensal = calcularResumoMensal();
-  const segundaAtual = obterInicioDaSemanaISO();
-  const hoje = obterDataHojeISO();
 
-  // Últimas 6 semanas, mais recente à direita — igual ao protótipo.
-  let semana = segundaAtual;
+  // Últimas 6 semanas, mais recente à direita. Cada chip mostra quantos dias
+  // dessa semana ficaram completos — mais útil agora que o streak é diário.
+  let semana = obterInicioDaSemanaISO();
   const semanas = [];
   for (let i = 0; i < 6; i++) {
     semanas.unshift(semana);
@@ -655,11 +651,11 @@ function renderFeedbackSemanal() {
   }
   const weeksRowHtml = semanas
     .map((s) => {
-      const terminada = obterFimDaSemanaISO(s) <= hoje;
-      const completa = semanaCompleta(s);
+      const res = calcularResumoDaSemana(s);
       const [, mes, dia] = s.split("-");
-      const icone = !terminada ? "🕓" : completa ? "🔥" : "✕";
-      return `<div class="week-chip ${terminada && completa ? "ok" : ""}">${icone}<br>${parseInt(dia, 10)}/${parseInt(mes, 10)}</div>`;
+      const perfeita = res.diasComGoals > 0 && res.diasCompletos === res.diasComGoals;
+      const texto = res.diasComGoals > 0 ? `${res.diasCompletos}/${res.diasComGoals}` : "—";
+      return `<div class="week-chip ${perfeita ? "ok" : ""}">${perfeita ? "🔥" : texto}<br>${parseInt(dia, 10)}/${parseInt(mes, 10)}</div>`;
     })
     .join("");
 
@@ -670,12 +666,12 @@ function renderFeedbackSemanal() {
       ${renderStatGridENiveis(r.streakAtual, r.streakRecorde, rMensal.taxa)}
       <h3 class="ajustes-secao-titulo" style="margin:0 0 10px;">Últimas 6 semanas</h3>
       <div class="weeks-row">${weeksRowHtml}</div>
-      ${r.questionarioPendente ? '<p class="feedback-aviso">⚠️ Falta responder ao check-in semanal — o fogo só conta depois de responderes.</p>' : ""}
       <div class="tip-card">
-        <p class="tip-titulo">📬 Como funciona o streak semanal</p>
+        <p class="tip-titulo">🔥 Como funciona o streak</p>
         <ul>
-          <li>Uma semana só conta se todos os dias com goals diárias/mensais ficarem 100% completos.</li>
-          <li>E se todas as goals semanais atingirem a meta — isso confirma-se sozinho, vê o separador Check-in.</li>
+          <li>Ganhas um fogo por cada dia em que cumpres tudo o que era obrigatório nesse dia.</li>
+          <li>Os goals <b>semanais</b> e <b>mensais</b> não te obrigam a nada enquanto tiveres folga no prazo — só entram no dia quando os dias que faltam já não chegam para a meta.</li>
+          <li>Falhar um dia volta a pôr o streak a zero, mas o teu recorde fica sempre guardado.</li>
         </ul>
       </div>
     </div>
@@ -685,7 +681,7 @@ function renderFeedbackSemanal() {
 
 function renderFeedbackMensal() {
   const r = calcularResumoMensal();
-  const streak = calcularResumoSemanal(); // streak é semanal, não depende do mês em vista
+  const streak = calcularResumoSemanal(); // o streak é sempre o atual, não depende do mês em vista
 
   appContent.innerHTML = `
     <div class="view-feedback">
@@ -817,8 +813,7 @@ function formatarMes(mesISO) {
 /* ===== Arranque ===== */
 function iniciarApp() {
   aplicarAjustes(obterAjustes());
-  resolverSemanasPassadas();
-  atualizarStreakSeNecessario();
+  atualizarStreak();
   atualizarStreakBadge();
   renderCalendario();
 

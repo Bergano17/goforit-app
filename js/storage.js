@@ -177,28 +177,96 @@ function obterGoalsPorTipo(mesISO, tipo) {
   return obterGoalsDoMes(mesISO).filter((g) => g.tipo === tipo);
 }
 
-// Goals que se marcam dia a dia no calendário (diário + mensal) — conta para o ✅/❌ do dia.
-function obterGoalsDiariosDoDia(dataISO) {
-  return obterGoalsDoMes(dataISO.slice(0, 7)).filter((g) => g.tipo === "diario" || g.tipo === "mensal");
+/* ===== A REGRA CENTRAL: quando é que um goal é OBRIGATÓRIO num dia =====
+ *
+ * Cada tipo de goal é julgado no seu próprio prazo, nunca antes:
+ * - "diario"  → obrigatório todos os dias.
+ * - "semanal" → só passa a obrigatório quando já não há dias suficientes até
+ *               domingo para ainda cumprires a meta.
+ * - "mensal"  → o mesmo, mas com prazo até ao último dia do mês.
+ *
+ * É isto que resolve o problema do "17 dias em 30": nos primeiros dias tens
+ * folga de sobra, por isso o goal não te obriga a nada e não parte o streak.
+ * Só quando os dias que faltam forem exatamente os ticks que ainda precisas
+ * é que ele entra na checklist obrigatória — e aí já o vias a chegar.
+ */
+
+function diaAnteriorISO(dataISO) {
+  const data = new Date(dataISO + "T00:00:00");
+  data.setDate(data.getDate() - 1);
+  return paraISO(data);
 }
 
-// Quantas vezes um goal "semanal" já foi registado esta semana (conta os ticks no checklist diário).
+// Ticks de um goal na semana/mês do dia indicado, contando SÓ os dias anteriores
+// a esse dia (o próprio dia ainda está em aberto, não entra na conta da folga).
+function ocorrenciasNaSemanaAntesDe(nomeGoal, dataISO) {
+  const segunda = obterInicioDaSemanaISO(dataISO);
+  if (dataISO <= segunda) return 0;
+  return obterDiasDoIntervalo(segunda, diaAnteriorISO(dataISO)).filter(
+    (d) => obterChecklistDoDia(d)[nomeGoal] === true
+  ).length;
+}
+
+function ocorrenciasNoMesAntesDe(nomeGoal, dataISO) {
+  const primeiro = `${dataISO.slice(0, 7)}-01`;
+  if (dataISO <= primeiro) return 0;
+  return obterDiasDoIntervalo(primeiro, diaAnteriorISO(dataISO)).filter(
+    (d) => obterChecklistDoDia(d)[nomeGoal] === true
+  ).length;
+}
+
+// Quantos dias faltam até ao fim do prazo, incluindo o próprio dia.
+function diasAteFimDaSemana(dataISO) {
+  return obterDiasDoIntervalo(dataISO, obterFimDaSemanaISO(obterInicioDaSemanaISO(dataISO))).length;
+}
+
+function diasAteFimDoMes(dataISO) {
+  return obterDiasDoIntervalo(dataISO, ultimoDiaDoMesISO(dataISO.slice(0, 7))).length;
+}
+
+function goalObrigatorioNoDia(goal, dataISO) {
+  if (goal.tipo === "diario") return true;
+
+  if (goal.tipo === "semanal") {
+    const falta = goal.meta - ocorrenciasNaSemanaAntesDe(goal.nome, dataISO);
+    return falta > 0 && falta >= diasAteFimDaSemana(dataISO);
+  }
+
+  if (goal.tipo === "mensal") {
+    const falta = goal.meta - ocorrenciasNoMesAntesDe(goal.nome, dataISO);
+    return falta > 0 && falta >= diasAteFimDoMes(dataISO);
+  }
+
+  return false;
+}
+
+// Os goals que decidem se o dia fica ✅ ou ❌ (e portanto o streak).
+function obterGoalsObrigatoriosNoDia(dataISO) {
+  return obterGoalsDoMes(dataISO.slice(0, 7)).filter((g) => goalObrigatorioNoDia(g, dataISO));
+}
+
+// Quantas vezes um goal já foi registado nesta semana (até hoje).
 function contarOcorrenciasSemana(nomeGoal, segundaISO = obterInicioDaSemanaISO()) {
   const hoje = obterDataHojeISO();
   const fimSemana = obterFimDaSemanaISO(segundaISO);
   const fim = fimSemana > hoje ? hoje : fimSemana;
-  const dias = obterDiasDoIntervalo(segundaISO, fim);
-  return dias.filter((d) => obterChecklistDoDia(d)[nomeGoal] === true).length;
+  return obterDiasDoIntervalo(segundaISO, fim).filter(
+    (d) => obterChecklistDoDia(d)[nomeGoal] === true
+  ).length;
 }
 
-// Goals a mostrar no cartão do dia: diário + mensal (sempre) + semanal (só enquanto
-// não atingir a meta dessa semana — depois some da lista, já está "despachado").
+// Goals a mostrar no cartão do dia: diário e mensal aparecem sempre (para poderes
+// marcar quando te der jeito); o semanal desaparece assim que a meta da semana
+// estiver atingida — já está despachado. Exceção: se foi neste dia que o
+// marcaste, continua à vista, senão desaparecia debaixo do dedo e não davas
+// para o desmarcar se te tivesses enganado.
 function obterGoalsParaMostrarNoDia(dataISO) {
   const segundaDaSemana = obterInicioDaSemanaISO(dataISO);
+  const checklist = obterChecklistDoDia(dataISO);
   return obterGoalsDoMes(dataISO.slice(0, 7)).filter((g) => {
-    if (g.tipo === "diario" || g.tipo === "mensal") return true;
-    if (g.tipo === "semanal") return contarOcorrenciasSemana(g.nome, segundaDaSemana) < g.meta;
-    return false;
+    if (g.tipo !== "semanal") return true;
+    if (checklist[g.nome] === true) return true;
+    return contarOcorrenciasSemana(g.nome, segundaDaSemana) < g.meta;
   });
 }
 
@@ -224,47 +292,38 @@ function removerGoal(nome, mesISO = obterMesAtualISO()) {
   guardarDados(dados);
 }
 
-/* ===== Checklist diária (goals "diario" + "mensal") ===== */
+/* ===== Checklist diária ===== */
 
 function obterChecklistDoDia(dataISO = obterDataHojeISO()) {
   const dados = carregarDados();
   return dados.checklist[dataISO] || {};
 }
 
-// Marca/desmarca um goal nesse dia. Devolve true se o novo valor ganhou um fogo semanal.
+// Marca/desmarca um goal nesse dia. Devolve true se com isto ganhaste um fogo novo.
 function alternarGoalNoDia(nomeGoal, dataISO = obterDataHojeISO()) {
+  const streakAntes = carregarDados().streak.atual || 0;
+
   const dados = carregarDados();
   if (!dados.checklist[dataISO]) dados.checklist[dataISO] = {};
   dados.checklist[dataISO][nomeGoal] = !dados.checklist[dataISO][nomeGoal];
   guardarDados(dados);
 
-  const segundaDaSemana = obterInicioDaSemanaISO(dataISO);
-
-  // Se for um goal semanal e a meta já foi atingida, confirma o check-in sozinho —
-  // já não é preciso ir ao ecrã de Check-in para "Sim".
-  const goal = obterGoalsDoMes(dataISO.slice(0, 7)).find((g) => g.nome === nomeGoal);
-  if (goal && goal.tipo === "semanal") {
-    const contagem = contarOcorrenciasSemana(nomeGoal, segundaDaSemana);
-    if (contagem >= goal.meta) {
-      responderCheckin(nomeGoal, true, segundaDaSemana);
-    }
-  }
-
-  return registarStreakSemanalSeCompleto(segundaDaSemana);
+  return atualizarStreak() > streakAntes;
 }
 
+// O dia só olha para os goals que hoje são obrigatórios — os que ainda têm
+// folga no prazo deles não podem estragar o dia.
 function checklistCompletaNoDia(dataISO) {
-  const goalsDoDia = obterGoalsDiariosDoDia(dataISO);
-  if (goalsDoDia.length === 0) return false;
+  const obrigatorios = obterGoalsObrigatoriosNoDia(dataISO);
+  if (obrigatorios.length === 0) return false;
   const checklist = obterChecklistDoDia(dataISO);
-  return goalsDoDia.every((g) => checklist[g.nome] === true);
+  return obrigatorios.every((g) => checklist[g.nome] === true);
 }
 
 function obterEstadoDoDia(dataISO) {
   const hoje = obterDataHojeISO();
   if (dataISO > hoje) return "futuro";
-  const goalsDoDia = obterGoalsDiariosDoDia(dataISO);
-  if (goalsDoDia.length === 0) return "sem-goals";
+  if (obterGoalsObrigatoriosNoDia(dataISO).length === 0) return "sem-goals";
   return checklistCompletaNoDia(dataISO) ? "completo" : "incompleto";
 }
 
@@ -280,156 +339,101 @@ function calcularProgressoMensal(nomeGoal, mesISO = obterMesAtualISO()) {
   return cumpridos;
 }
 
-/* ===== Check-in semanal (goals "semanal") ===== */
+/* ===== Streak / Fogos (diário) =====
+ *
+ * O streak é recalculado do zero a partir do histórico, em vez de ser um número
+ * guardado que vai somando e subtraindo. É mais simples de perceber e nunca fica
+ * dessincronizado — se voltares atrás e corrigires um dia antigo, o streak
+ * ajusta-se sozinho da próxima vez que for calculado.
+ */
 
-function obterCheckinSemana(segundaISO = obterInicioDaSemanaISO()) {
-  const dados = carregarDados();
-  return dados.checkins[segundaISO] || {};
-}
-
-// Devolve true se ganhou um fogo novo com esta resposta.
-function responderCheckin(nomeGoal, valor, segundaISO = obterInicioDaSemanaISO()) {
-  const dados = carregarDados();
-  if (!dados.checkins[segundaISO]) dados.checkins[segundaISO] = {};
-  dados.checkins[segundaISO][nomeGoal] = valor;
-  guardarDados(dados);
-
-  return registarStreakSemanalSeCompleto(segundaISO);
-}
-
-function metasSemanaisCumpridas(segundaISO) {
-  const goalsSemanais = obterGoalsPorTipo(segundaISO.slice(0, 7), "semanal");
-  if (goalsSemanais.length === 0) return true;
-  const respostas = obterCheckinSemana(segundaISO);
-  return goalsSemanais.every((g) => respostas[g.nome] === true);
-}
-
-function questionarioPendente(segundaISO = obterInicioDaSemanaISO()) {
-  const goalsSemanais = obterGoalsPorTipo(segundaISO.slice(0, 7), "semanal");
-  if (goalsSemanais.length === 0) return false;
-  const respostas = obterCheckinSemana(segundaISO);
-  return goalsSemanais.some((g) => respostas[g.nome] === undefined);
-}
-
-// Todos os dias da semana (seg até hoje/domingo) tiveram a checklist diária 100% cumprida?
-function semanaComDiasCompletos(segundaISO) {
+function calcularStreakDiario() {
   const hoje = obterDataHojeISO();
-  const fimSemana = obterFimDaSemanaISO(segundaISO);
-  const fim = fimSemana > hoje ? hoje : fimSemana;
-  const dias = obterDiasDoIntervalo(segundaISO, fim);
-  const diasComGoals = dias.filter((d) => obterGoalsDiariosDoDia(d).length > 0);
-  if (diasComGoals.length === 0) return true; // sem goals diários definidos, não penaliza
-  return diasComGoals.every((d) => checklistCompletaNoDia(d));
+  let dia = hoje;
+
+  // O dia de hoje ainda pode estar a meio: se ainda não está completo, isso não
+  // parte a corrente — começa-se simplesmente a contar a partir de ontem.
+  if (obterEstadoDoDia(hoje) !== "completo") dia = diaAnteriorISO(hoje);
+
+  let total = 0;
+  for (let i = 0; i < 1000; i++) {
+    if (obterGoalsDoMes(dia.slice(0, 7)).length === 0) break; // antes de haver goals definidos, pára
+
+    const estado = obterEstadoDoDia(dia);
+    if (estado === "completo") total++;
+    else if (estado !== "sem-goals") break; // dia incompleto → a corrente parte aqui
+
+    dia = diaAnteriorISO(dia);
+  }
+  return total;
 }
 
-// O fogo da semana só conta se o questionário foi respondido — como pedido.
-function semanaCompleta(segundaISO) {
-  if (questionarioPendente(segundaISO)) return false;
-  return metasSemanaisCumpridas(segundaISO) && semanaComDiasCompletos(segundaISO);
-}
-
-/* ===== Streak / Fogos (agora por semana) ===== */
-
-function atualizarStreakSeNecessario() {
+// Recalcula e guarda o streak. Devolve o valor novo.
+function atualizarStreak() {
   const dados = carregarDados();
-  const semanaAtual = obterInicioDaSemanaISO();
-  const semanaAnterior = obterSemanaAnteriorISO(semanaAtual);
-  const { ultimaSemanaCompleta } = dados.streak;
-
-  if (ultimaSemanaCompleta && ultimaSemanaCompleta !== semanaAtual && ultimaSemanaCompleta !== semanaAnterior) {
-    dados.streak.atual = 0;
-    guardarDados(dados);
-  }
-}
-
-// Reavalia a semana indicada e ajusta o streak. Devolve true se ganhou um fogo novo agora.
-function registarStreakSemanalSeCompleto(segundaISO) {
-  const dados = carregarDados();
-  const completa = semanaCompleta(segundaISO);
-
-  if (completa && dados.streak.ultimaSemanaCompleta !== segundaISO) {
-    dados.streak.atual += 1;
-    dados.streak.ultimaSemanaCompleta = segundaISO;
-    if (dados.streak.atual > dados.streak.recorde) dados.streak.recorde = dados.streak.atual;
-    guardarDados(dados);
-    return true;
-  }
-
-  if (!completa && dados.streak.ultimaSemanaCompleta === segundaISO) {
-    dados.streak.atual = Math.max(0, dados.streak.atual - 1);
-    dados.streak.ultimaSemanaCompleta = null;
-    guardarDados(dados);
-  }
-
-  return false;
-}
-
-// Resolve sozinho o check-in de semanas já terminadas que ficaram por responder:
-// se a meta foi atingida conta como cumprido, senão como não cumprido.
-// Chamado no arranque da app — assim nunca fica nada pendente de semanas antigas.
-function resolverSemanasPassadas() {
-  let semana = obterSemanaAnteriorISO(obterInicioDaSemanaISO());
-
-  for (let i = 0; i < 12; i++) {
-    const goalsSemanais = obterGoalsPorTipo(semana.slice(0, 7), "semanal");
-    if (goalsSemanais.length === 0) break;
-
-    const respostas = obterCheckinSemana(semana);
-    let havaPendentes = false;
-
-    goalsSemanais.forEach((g) => {
-      if (respostas[g.nome] === undefined) {
-        havaPendentes = true;
-        const contagem = contarOcorrenciasSemana(g.nome, semana);
-        responderCheckin(g.nome, contagem >= g.meta, semana);
-      }
-    });
-
-    if (!havaPendentes) break; // esta semana já estava toda resolvida, não vale a pena ir mais atrás
-    semana = obterSemanaAnteriorISO(semana);
-  }
+  const atual = calcularStreakDiario();
+  dados.streak.atual = atual;
+  if (atual > (dados.streak.recorde || 0)) dados.streak.recorde = atual;
+  guardarDados(dados);
+  return atual;
 }
 
 // "classe" é o nome da classe CSS usada no badge do cabeçalho (ver style.css)
 // para dar mais brilho/movimento a cada nível — quanto mais alto o nível,
 // mais "vivo" o badge fica, só de olhar, sem precisar de ler o número.
 function obterNivelFogo(streakAtual) {
-  if (streakAtual >= 30) return { icone: "🔥🔥🔥🔥🔥", nome: "Lendário", classe: "nivel-lendario" };
-  if (streakAtual >= 14) return { icone: "🔥🔥🔥🔥", nome: "Incêndio", classe: "nivel-incendio" };
-  if (streakAtual >= 7) return { icone: "🔥🔥🔥", nome: "Fogueira", classe: "nivel-fogueira" };
-  if (streakAtual >= 3) return { icone: "🔥🔥", nome: "Chama", classe: "nivel-chama" };
+  if (streakAtual >= 100) return { icone: "🔥🔥🔥🔥🔥", nome: "Lendário", classe: "nivel-lendario" };
+  if (streakAtual >= 60) return { icone: "🔥🔥🔥🔥", nome: "Incêndio", classe: "nivel-incendio" };
+  if (streakAtual >= 30) return { icone: "🔥🔥🔥", nome: "Fogueira", classe: "nivel-fogueira" };
+  if (streakAtual >= 10) return { icone: "🔥🔥", nome: "Chama", classe: "nivel-chama" };
   if (streakAtual >= 1) return { icone: "🔥", nome: "Faísca", classe: "nivel-faisca" };
   return { icone: "💨", nome: "Sem streak", classe: "nivel-nenhum" };
 }
 
 /* ===== Feedback semanal / mensal ===== */
 
-function calcularResumoSemanal() {
-  const segundaISO = obterInicioDaSemanaISO();
-  const hoje = obterDataHojeISO();
-  const dias = obterDiasDoIntervalo(segundaISO, hoje);
-
+// Conta os dias completos / dias que contavam, num intervalo qualquer.
+// Dias "sem-goals" (sem nada obrigatório) ficam de fora da conta — não contam
+// como sucesso nem como falha.
+function contarDiasNoIntervalo(inicioISO, fimISO) {
   let diasCompletos = 0;
   let diasComGoals = 0;
-  dias.forEach((dia) => {
-    if (obterGoalsDiariosDoDia(dia).length > 0) {
-      diasComGoals++;
-      if (checklistCompletaNoDia(dia)) diasCompletos++;
-    }
+
+  obterDiasDoIntervalo(inicioISO, fimISO).forEach((dia) => {
+    const estado = obterEstadoDoDia(dia);
+    if (estado === "sem-goals" || estado === "futuro") return;
+    diasComGoals++;
+    if (estado === "completo") diasCompletos++;
   });
 
   const taxa = diasComGoals > 0 ? Math.round((diasCompletos / diasComGoals) * 100) : 0;
+  return { diasCompletos, diasComGoals, taxa };
+}
+
+// Resumo de uma semana qualquer (usado nos chips das últimas semanas no Feedback).
+function calcularResumoDaSemana(segundaISO) {
+  const hoje = obterDataHojeISO();
+  if (segundaISO > hoje) return { diasCompletos: 0, diasComGoals: 0, taxa: 0, comecou: false };
+
+  const fimSemana = obterFimDaSemanaISO(segundaISO);
+  const fim = fimSemana > hoje ? hoje : fimSemana;
+  return { ...contarDiasNoIntervalo(segundaISO, fim), comecou: true };
+}
+
+function calcularResumoSemanal() {
+  const segundaISO = obterInicioDaSemanaISO();
+  const hoje = obterDataHojeISO();
+  const contagem = contarDiasNoIntervalo(segundaISO, hoje);
   const dados = carregarDados();
 
   return {
     inicioSemana: segundaISO,
     fim: hoje,
-    diasCompletos,
-    diasComGoals,
-    taxa,
-    streakAtual: dados.streak.atual,
-    streakRecorde: dados.streak.recorde,
-    questionarioPendente: questionarioPendente(segundaISO),
+    diasCompletos: contagem.diasCompletos,
+    diasComGoals: contagem.diasComGoals,
+    taxa: contagem.taxa,
+    streakAtual: dados.streak.atual || 0,
+    streakRecorde: dados.streak.recorde || 0,
   };
 }
 
@@ -437,16 +441,9 @@ function calcularResumoMensal(mesISO = obterMesAtualISO()) {
   const hoje = obterDataHojeISO();
   const inicioMes = `${mesISO}-01`;
   const fimIntervalo = mesISO === obterMesAtualISO() ? hoje : ultimoDiaDoMesISO(mesISO);
-  const dias = obterDiasDoIntervalo(inicioMes, fimIntervalo);
   const goals = obterGoalsDoMes(mesISO);
-  const goalsDiariosMensais = goals.filter((g) => g.tipo === "diario" || g.tipo === "mensal");
 
-  let diasCompletos = 0;
-  dias.forEach((dia) => {
-    if (checklistCompletaNoDia(dia)) diasCompletos++;
-  });
-
-  const taxa = goalsDiariosMensais.length > 0 ? Math.round((diasCompletos / dias.length) * 100) : 0;
+  const { diasCompletos, diasComGoals, taxa } = contarDiasNoIntervalo(inicioMes, fimIntervalo);
 
   let sugestao;
   if (goals.length === 0) {
@@ -459,7 +456,7 @@ function calcularResumoMensal(mesISO = obterMesAtualISO()) {
     sugestao = "Mês difícil. Considera reduzir o número de goals para algo mais realista no próximo mês.";
   }
 
-  return { mesISO, diasCompletos, totalDias: dias.length, taxa, goals, sugestao };
+  return { mesISO, diasCompletos, totalDias: diasComGoals, taxa, goals, sugestao };
 }
 
 /* ===== Grelha de calendário ===== */
