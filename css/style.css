@@ -1142,3 +1142,28 @@ body {
   background: linear-gradient(90deg, var(--cor-destaque), var(--cor-destaque-2));
   color: var(--texto-principal);
 }
+
+.notif-secao {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.notif-secao .btn-primary {
+  width: 100%;
+}
+
+.notif-status {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.notif-ok {
+  color: var(--texto-principal);
+}
+
+.notif-bloqueado {
+  color: var(--texto-secundario);
+  line-height: 1.4;
+}

@@ -706,6 +706,23 @@ function renderFeedbackMensal() {
 }
 
 /* ===== Ecrã: Ajustes (aparência) ===== */
+
+// O iOS só mostra o popup nativo de notificações se requestPermission() for
+// chamado dentro de um toque do utilizador — por isso já não se pede sozinho
+// ao abrir a app (etapa 18); este botão é o único sítio onde se pede.
+function htmlEstadoNotificacoes() {
+  if (!("Notification" in window)) {
+    return `<p class="placeholder-text-small">Este browser não suporta notificações.</p>`;
+  }
+  if (Notification.permission === "granted") {
+    return `<p class="notif-status notif-ok">✅ Notificações ativadas.</p>`;
+  }
+  if (Notification.permission === "denied") {
+    return `<p class="notif-status notif-bloqueado">❌ Notificações bloqueadas. Ativa-as em Definições do iPhone → Notificações → GO FOR IT.</p>`;
+  }
+  return `<button class="btn-primary" id="btn-ativar-notificacoes">🔔 Ativar notificações</button>`;
+}
+
 function renderAjustes() {
   const ajustes = obterAjustes();
 
@@ -737,6 +754,9 @@ function renderAjustes() {
     <div class="view-ajustes">
       <h2 class="view-titulo">Ajustes</h2>
       <p class="placeholder-text-small">Personaliza o visual da app ao teu gosto — guarda-se só neste telemóvel.</p>
+
+      <h3 class="ajustes-secao-titulo">Notificações</h3>
+      <div class="notif-secao">${htmlEstadoNotificacoes()}</div>
 
       <h3 class="ajustes-secao-titulo">Tipo de letra</h3>
       <div class="opcao-grid" id="opcoes-fonte">${fontesHtml}</div>
@@ -782,6 +802,18 @@ function renderAjustes() {
       renderAjustes();
     });
   });
+
+  const btnNotif = appContent.querySelector("#btn-ativar-notificacoes");
+  if (btnNotif) {
+    btnNotif.addEventListener("click", () => {
+      // Está dentro do "click" do botão — é isto que o iOS exige para mostrar
+      // o popup nativo de permissão (chamar sozinho ao abrir a app não funciona).
+      Notification.requestPermission().then((permissao) => {
+        if (permissao === "granted") subscreverNotificacoesPush();
+        renderAjustes(); // redesenha para mostrar o novo estado (✅ ou ❌)
+      });
+    });
+  }
 }
 
 /* ===== Navegação ===== */
@@ -821,13 +853,12 @@ function iniciarApp() {
     btn.addEventListener("click", () => mudarView(btn.dataset.view));
   });
 
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission().then((permissao) => {
-      if (permissao === "granted") subscreverNotificacoesPush();
-    });
-  } else if ("Notification" in window && Notification.permission === "granted") {
+  if ("Notification" in window && Notification.permission === "granted") {
     // Permissão já dada em sessões anteriores — garante que a subscrição
     // no servidor continua válida (ex: se apagaste o subscritores.json).
+    // O pedido de permissão em si já não se faz aqui: o iOS só mostra o
+    // popup nativo quando requestPermission() é chamado dentro de um toque
+    // do utilizador, por isso passou a viver só no botão do ecrã de Ajustes.
     subscreverNotificacoesPush();
   }
 }
