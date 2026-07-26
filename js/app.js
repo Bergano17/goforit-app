@@ -86,9 +86,35 @@ async function subscreverNotificacoesPush() {
     });
 
     console.log("✅ Subscrito a notificações push.");
+    sincronizarEstadoComServidor(); // já agora manda logo o primeiro resumo
   } catch (erro) {
     // Não bloqueia a app se o servidor ainda não estiver a correr/deployado.
     console.log("Não foi possível subscrever notificações push:", erro.message);
+  }
+}
+
+// Manda ao servidor um resumo do progresso (streak, quanto falta em cada
+// goal — nunca os nomes) para ele conseguir escolher a notificação certa à
+// hora certa, mesmo com a app fechada (etapa 19). Chamada sempre que algo
+// que esse resumo usa pode ter mudado: ao abrir a app, ao marcar um goal, ao
+// criar/remover um goal. Falha em silêncio se não houver subscrição ainda ou
+// o servidor estiver indisponível — nunca deve travar a app.
+async function sincronizarEstadoComServidor() {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+
+  try {
+    const registo = await navigator.serviceWorker.ready;
+    const subscricao = await registo.pushManager.getSubscription();
+    if (!subscricao) return; // ainda não há subscrição para associar o estado
+
+    await fetch(`${SERVER_URL}/atualizar-estado`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: subscricao.endpoint, estado: construirEstadoParaServidor() }),
+    });
+  } catch (erro) {
+    console.log("Não foi possível sincronizar estado com o servidor:", erro.message);
   }
 }
 
@@ -340,6 +366,7 @@ function ligarDetalheDia() {
         comemorarBadge();
       }
 
+      sincronizarEstadoComServidor(); // o progresso mudou — mantém o servidor a par
       renderCalendario();
     });
   });
@@ -487,6 +514,7 @@ function renderGoals() {
       novoGoalTexto = "";
       novoGoalTipo = "diario";
       novoGoalMeta = 3;
+      sincronizarEstadoComServidor(); // novo goal pode mudar temGoalsSemanais/mensais
       renderGoals();
     });
   }
@@ -494,6 +522,7 @@ function renderGoals() {
   appContent.querySelectorAll(".goal-card-remove").forEach((btn) => {
     btn.addEventListener("click", () => {
       removerGoal(btn.dataset.goal, mesISO);
+      sincronizarEstadoComServidor();
       renderGoals();
     });
   });
@@ -860,6 +889,7 @@ function iniciarApp() {
     // popup nativo quando requestPermission() é chamado dentro de um toque
     // do utilizador, por isso passou a viver só no botão do ecrã de Ajustes.
     subscreverNotificacoesPush();
+    sincronizarEstadoComServidor(); // mantém o resumo no servidor fresco a cada abertura
   }
 }
 

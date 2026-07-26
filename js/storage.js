@@ -459,6 +459,62 @@ function calcularResumoMensal(mesISO = obterMesAtualISO()) {
   return { mesISO, diasCompletos, totalDias: diasComGoals, taxa, goals, sugestao };
 }
 
+/* ===== Estado resumido para o servidor de notificações (etapa 19) =====
+ *
+ * O servidor precisa de saber o teu progresso para conseguir mandar
+ * notificações personalizadas (quanto falta, resumo da semana/mês) mesmo
+ * com a app fechada — mas só os NÚMEROS, nunca o nome dos teus goals. Esta
+ * função constrói exatamente esse resumo, reaproveitando as mesmas contas
+ * que já a app usa para se desenhar a si própria (nada de lógica nova).
+ */
+function construirEstadoParaServidor() {
+  const dados = carregarDados();
+  const mesISO = obterMesAtualISO();
+  const hoje = obterDataHojeISO();
+
+  // "Diário" aqui junta os tipos "diario" e "mensal" — são os dois que se
+  // marcam todos os dias (o mensal só difere na meta, não na frequência).
+  const goalsParaMarcarHoje = obterGoalsDoMes(mesISO).filter((g) => g.tipo === "diario" || g.tipo === "mensal");
+  const checklistHoje = obterChecklistDoDia(hoje);
+  const feitosHoje = goalsParaMarcarHoje.filter((g) => checklistHoje[g.nome] === true).length;
+
+  const semanais = obterGoalsPorTipo(mesISO, "semanal").map((g) => ({
+    meta: g.meta,
+    feito: contarOcorrenciasSemana(g.nome),
+  }));
+
+  const mensais = obterGoalsPorTipo(mesISO, "mensal").map((g) => ({
+    meta: g.meta,
+    feito: calcularProgressoMensal(g.nome, mesISO),
+  }));
+
+  const resumoSemana = calcularResumoSemanal();
+  const resumoMes = calcularResumoMensal(mesISO);
+
+  return {
+    streak: { atual: dados.streak.atual || 0, recorde: dados.streak.recorde || 0 },
+    diario: {
+      existemGoals: goalsParaMarcarHoje.length > 0,
+      totalHoje: goalsParaMarcarHoje.length,
+      feitosHoje,
+    },
+    temGoalsSemanais: semanais.length > 0,
+    semanais,
+    mensais,
+    resumoSemana: {
+      diasCompletos: resumoSemana.diasCompletos,
+      diasComGoals: resumoSemana.diasComGoals,
+      taxa: resumoSemana.taxa,
+    },
+    resumoMes: {
+      diasCompletos: resumoMes.diasCompletos,
+      totalDias: resumoMes.totalDias,
+      taxa: resumoMes.taxa,
+      sugestao: resumoMes.sugestao,
+    },
+  };
+}
+
 /* ===== Grelha de calendário ===== */
 
 function gerarGradeDoMes(mesISO) {
