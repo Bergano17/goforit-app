@@ -755,7 +755,7 @@ function renderAjustes() {
       <h2 class="view-titulo">Ajustes</h2>
       <p class="placeholder-text-small">Personaliza o visual da app ao teu gosto — guarda-se só neste telemóvel.</p>
 
-      <h3 class="ajustes-secao-titulo">Notificações</h3>
+      <h3 class="ajustes-secao-titulo">🔔 Notificações</h3>
       <div class="notif-secao">${htmlEstadoNotificacoes()}</div>
 
       <h3 class="ajustes-secao-titulo">Tipo de letra</h3>
