@@ -542,14 +542,19 @@ function construirEstadoParaServidor() {
   const checklistHoje = obterChecklistDoDia(hoje);
   const feitosHoje = goalsParaMarcarHoje.filter((g) => checklistHoje[g.nome] === true).length;
 
+  // "feitoHoje" existe para o servidor não te chatear com um goal que já
+  // marcaste hoje: como só se pode marcar uma vez por dia, não há mais nada
+  // que possas fazer por ele hoje — qualquer aviso sobre ele seria ruído.
   const semanais = obterGoalsPorTipo(mesISO, "semanal").map((g) => ({
     meta: g.meta,
     feito: obterEstadoGoalSemanal(g).feito, // já entra como "goal.meta" se estiver concluído — nunca soa a falso alarme de urgência
+    feitoHoje: checklistHoje[g.nome] === true,
   }));
 
   const mensais = obterGoalsPorTipo(mesISO, "mensal").map((g) => ({
     meta: g.meta,
     feito: calcularProgressoMensal(g.nome, mesISO),
+    feitoHoje: checklistHoje[g.nome] === true,
   }));
 
   const resumoSemana = calcularResumoSemanal();
