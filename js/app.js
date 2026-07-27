@@ -165,6 +165,40 @@ function celebrar(mensagem) {
   mostrarToast(mensagem);
 }
 
+/**
+ * Aviso no momento do tick, quando o goal ainda não está fechado.
+ *
+ * Pedido do Antonio: ao dar o penúltimo tick de um objetivo, ele quer saber
+ * logo ali quantos dias lhe restam para o último — não faz sentido esperar
+ * pela notificação das 18:30 do servidor para receber essa informação.
+ *
+ * `diasRestantes` já vem sem contar com hoje: hoje o tick acabou de ser dado
+ * e um goal só se pode marcar uma vez por dia, por isso o tempo útil que
+ * resta é mesmo a partir de amanhã.
+ */
+function avisarQuantoFalta(nomeGoal, falta, diasRestantes) {
+  if (falta <= 0) return;
+
+  if (diasRestantes <= 0) {
+    // Marcou hoje, mas o prazo fecha hoje e ainda falta — não há como cumprir.
+    celebrar(`⚠️ "${nomeGoal}": o prazo acaba hoje e ainda faltava ${falta}.`);
+    return;
+  }
+
+  const prazo = `${diasRestantes} ${diasRestantes === 1 ? "dia" : "dias"}`;
+
+  if (falta === 1) {
+    celebrar(`💪 Falta só 1 para fechares "${nomeGoal}" — ainda tens ${prazo}.`);
+    return;
+  }
+
+  // Só vale a pena falar do prazo quando ele começa a apertar; caso contrário
+  // seria uma notificação a cada tique, e deixava de significar alguma coisa.
+  if (falta >= diasRestantes) {
+    celebrar(`⚠️ "${nomeGoal}": faltam ${falta} e restam ${prazo} — sem margem para falhar.`);
+  }
+}
+
 function mostrarToast(mensagem) {
   const toast = document.createElement("div");
   toast.className = "toast";
@@ -349,8 +383,11 @@ function ligarDetalheDia() {
 
       if (agoraCumprido && goal.tipo === "semanal") {
         const segunda = obterInicioDaSemanaISO(diaSelecionadoISO);
-        if (contarOcorrenciasSemana(nomeGoal, segunda) >= goal.meta) {
+        const feito = contarOcorrenciasSemana(nomeGoal, segunda);
+        if (feito >= goal.meta) {
           celebrar(`🎉 Atingiste a meta semanal de "${nomeGoal}"!`);
+        } else {
+          avisarQuantoFalta(nomeGoal, goal.meta - feito, diasAteFimDaSemana(diaSelecionadoISO) - 1);
         }
       }
 
@@ -358,6 +395,8 @@ function ligarDetalheDia() {
         const progresso = calcularProgressoMensal(nomeGoal, diaSelecionadoISO.slice(0, 7));
         if (progresso === goal.meta) {
           celebrar(`🎉 Atingiste a meta mensal de "${nomeGoal}"!`);
+        } else if (progresso < goal.meta) {
+          avisarQuantoFalta(nomeGoal, goal.meta - progresso, diasAteFimDoMes(diaSelecionadoISO) - 1);
         }
       }
 

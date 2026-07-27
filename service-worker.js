@@ -9,7 +9,7 @@
  * IMPORTANTE — sobe este número sempre que publicares uma versão nova da app.
  * É isso que faz o telemóvel deitar fora a cópia antiga e ir buscar a nova.
  */
-const CACHE_NAME = "goforit-cache-v10";
+const CACHE_NAME = "goforit-cache-v11";
 
 const FICHEIROS_PARA_CACHE = [
   "./index.html",
