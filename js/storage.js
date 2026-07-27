@@ -129,6 +129,12 @@ function obterSemanaAnteriorISO(segundaISO) {
   return paraISO(data);
 }
 
+function obterSemanaSeguinteISO(segundaISO) {
+  const data = new Date(segundaISO + "T00:00:00");
+  data.setDate(data.getDate() + 7);
+  return paraISO(data);
+}
+
 function obterFimDaSemanaISO(segundaISO) {
   const data = new Date(segundaISO + "T00:00:00");
   data.setDate(data.getDate() + 6);
@@ -175,6 +181,25 @@ function obterGoalsDoMes(mesISO = obterMesAtualISO()) {
 
 function obterGoalsPorTipo(mesISO, tipo) {
   return obterGoalsDoMes(mesISO).filter((g) => g.tipo === tipo);
+}
+
+// Ao virar o mês, os goals "semanal" e "mensal" precisam mesmo de ser
+// redefinidos (fazem sentido só dentro do mês em que foram criados). Mas os
+// goals "diario" (ex: beber água) não têm essa validade curta — pedido do
+// Antonio para continuarem automaticamente todos os meses, a não ser que a
+// própria pessoa os remova. Esta função só faz alguma coisa na PRIMEIRA vez
+// que um mês novo é usado (se já existir lista guardada para esse mês, não
+// mexe em nada — não vai "ressuscitar" um goal diário que a pessoa já apagou
+// esse mês).
+function garantirGoalsDoMesInicializados(mesISO) {
+  const dados = carregarDados();
+  if (dados.goals[mesISO]) return; // este mês já foi inicializado (ou já tem goals) — não mexer
+
+  const goalsDoMesAnterior = dados.goals[mesAnteriorISO(mesISO)] || [];
+  const diariosParaTransportar = goalsDoMesAnterior.filter((g) => g.tipo === "diario").map((g) => ({ ...g }));
+
+  dados.goals[mesISO] = diariosParaTransportar;
+  guardarDados(dados);
 }
 
 /* ===== A REGRA CENTRAL: quando é que um goal é OBRIGATÓRIO num dia =====
@@ -224,10 +249,31 @@ function diasAteFimDoMes(dataISO) {
   return obterDiasDoIntervalo(dataISO, ultimoDiaDoMesISO(dataISO.slice(0, 7))).length;
 }
 
+// Um goal "semanal" só é válido na semana em que foi criado (`goal.semanaCriacao`,
+// a segunda-feira dessa semana). Passada essa semana — cumprido ou não, tanto
+// faz — deixa de contar e de aparecer: nunca se renova sozinho. Pedido
+// explícito do Antonio: para continuares a persegui-lo (mesmo que tenhas
+// falhado), tens de criar um novo goal na semana seguinte.
+//
+// Exceção (opt-in, ao criar o goal): se `goal.persistente` for true, a pessoa
+// escolheu explicitamente que ESTE goal se deve manter todas as semanas
+// sozinho — nunca expira, o progresso é recalculado do zero a cada semana
+// nova, até a própria pessoa o remover.
+function semanalExpirouNestaSemana(goal, segundaAtual) {
+  if (goal.persistente) return false;
+
+  // Um goal semanal de antes desta regra existir (sem "semanaCriacao"
+  // guardado) cai automaticamente no caso "expirou" — undefined nunca é
+  // igual a uma segunda-feira real — o que é o comportamento certo: passa a
+  // precisar de ser recriado, tal como qualquer outro depois da sua semana.
+  return goal.semanaCriacao !== segundaAtual;
+}
+
 function goalObrigatorioNoDia(goal, dataISO) {
   if (goal.tipo === "diario") return true;
 
   if (goal.tipo === "semanal") {
+    if (semanalExpirouNestaSemana(goal, obterInicioDaSemanaISO(dataISO))) return false;
     const falta = goal.meta - ocorrenciasNaSemanaAntesDe(goal.nome, dataISO);
     return falta > 0 && falta >= diasAteFimDaSemana(dataISO);
   }
@@ -265,23 +311,41 @@ function obterGoalsParaMostrarNoDia(dataISO) {
   const checklist = obterChecklistDoDia(dataISO);
   return obterGoalsDoMes(dataISO.slice(0, 7)).filter((g) => {
     if (g.tipo !== "semanal") return true;
+    if (semanalExpirouNestaSemana(g, segundaDaSemana)) return false; // já não é a semana em que foi criado — não renova sozinho
     if (checklist[g.nome] === true) return true;
     return contarOcorrenciasSemana(g.nome, segundaDaSemana) < g.meta;
   });
 }
 
-function adicionarGoal(nome, tipo = "diario", meta = null, mesISO = obterMesAtualISO()) {
+// Estado a mostrar no ecrã de Goals / Check-in para um goal semanal: se já
+// passou da semana em que foi criado, fica "concluído/expirado" — não
+// interessa mostrar o progresso da semana atual (é sempre 0, já não conta).
+function obterEstadoGoalSemanal(goal, segundaAtual = obterInicioDaSemanaISO()) {
+  if (semanalExpirouNestaSemana(goal, segundaAtual)) return { concluido: true, feito: goal.meta };
+  return { concluido: false, feito: contarOcorrenciasSemana(goal.nome, segundaAtual) };
+}
+
+function adicionarGoal(nome, tipo = "diario", meta = null, mesISO = obterMesAtualISO(), persistente = false) {
   const dados = carregarDados();
   if (!dados.goals[mesISO]) dados.goals[mesISO] = [];
   const nomeLimpo = nome.trim();
   if (!nomeLimpo) return;
   if (dados.goals[mesISO].some((g) => g.nome === nomeLimpo)) return;
 
-  dados.goals[mesISO].push({
+  const goal = {
     nome: nomeLimpo,
     tipo,
     meta: tipo === "diario" ? null : Math.max(1, Number(meta) || 1),
-  });
+  };
+  // Só os "semanal" precisam de saber em que semana nasceram — é isso que
+  // decide quando expiram (ver semanalExpirouNestaSemana). "persistente" é a
+  // opção que a pessoa escolhe no formulário para este goal nunca expirar.
+  if (tipo === "semanal") {
+    goal.semanaCriacao = obterInicioDaSemanaISO();
+    goal.persistente = !!persistente;
+  }
+
+  dados.goals[mesISO].push(goal);
   guardarDados(dados);
 }
 
@@ -480,7 +544,7 @@ function construirEstadoParaServidor() {
 
   const semanais = obterGoalsPorTipo(mesISO, "semanal").map((g) => ({
     meta: g.meta,
-    feito: contarOcorrenciasSemana(g.nome),
+    feito: obterEstadoGoalSemanal(g).feito, // já entra como "goal.meta" se estiver concluído — nunca soa a falso alarme de urgência
   }));
 
   const mensais = obterGoalsPorTipo(mesISO, "mensal").map((g) => ({
@@ -498,7 +562,11 @@ function construirEstadoParaServidor() {
       totalHoje: goalsParaMarcarHoje.length,
       feitosHoje,
     },
-    temGoalsSemanais: semanais.length > 0,
+    // Só conta os NÃO persistentes — só esses precisam mesmo de ser
+    // redefinidos todas as semanas, é só a esses que o aviso de domingo
+    // interessa (um goal "persistente" já continua sozinho, não há nada a
+    // redefinir).
+    temGoalsSemanais: obterGoalsPorTipo(mesISO, "semanal").some((g) => !g.persistente),
     semanais,
     mensais,
     resumoSemana: {

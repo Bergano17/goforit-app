@@ -256,7 +256,11 @@ function renderDetalheDiaHtml(dataISO) {
   const goals = obterGoalsParaMostrarNoDia(dataISO);
   const checklist = obterChecklistDoDia(dataISO);
   const segundaDaSemana = obterInicioDaSemanaISO(dataISO);
-  const editavel = dataISO <= obterDataHojeISO();
+  const hoje = obterDataHojeISO();
+  // Só se pode marcar/desmarcar o dia de HOJE (nem passado, nem futuro) — pedido
+  // do Antonio antes do lançamento a sério, para não dar para "corrigir" dias
+  // antigos depois de já terem passado.
+  const editavel = dataISO === hoje;
 
   if (goals.length === 0) {
     return `
@@ -319,7 +323,7 @@ function renderDetalheDiaHtml(dataISO) {
         <button class="btn-fechar" id="fechar-detalhe">✕</button>
       </div>
       <ul class="goal-list">${itensHtml}</ul>
-      ${!editavel ? '<p class="placeholder-text-small">Este dia ainda não chegou.</p>' : ""}
+      ${!editavel ? `<p class="placeholder-text-small">${dataISO > hoje ? "Este dia ainda não chegou." : "Só podes marcar/desmarcar o dia de hoje — este é só para consulta."}</p>` : ""}
     </div>
   `;
 }
@@ -381,6 +385,10 @@ const LIMITE_GOALS = 6;
 let novoGoalTipo = "diario";
 let novoGoalMeta = 3;
 let novoGoalTexto = "";
+// Só interessa para goals "semanal": por defeito expiram ao fim da semana
+// (pedido do Antonio); marcando isto, a pessoa escolhe explicitamente manter
+// este goal a repetir-se sozinho todas as semanas, até o remover à mão.
+let novoGoalPersistente = false;
 
 function metaMaxima(tipo, mesISO) {
   if (tipo === "semanal") return 7;
@@ -405,8 +413,13 @@ function renderGoals() {
     .map((goal) => {
       let sub = "todos os dias";
       if (goal.tipo === "semanal") {
-        const contagem = contarOcorrenciasSemana(goal.nome);
-        sub = `${Math.min(contagem, goal.meta)}/${goal.meta}x esta semana${contagem >= goal.meta ? " ✅" : ""}`;
+        const estadoSemanal = obterEstadoGoalSemanal(goal);
+        if (estadoSemanal.concluido) {
+          sub = `✅ Terminado — não se renova sozinho, cria um novo goal para continuares`;
+        } else {
+          const etiquetaPersistente = goal.persistente ? " 🔁 mantém-se todas as semanas" : "";
+          sub = `${Math.min(estadoSemanal.feito, goal.meta)}/${goal.meta}x esta semana${etiquetaPersistente}`;
+        }
       } else if (goal.tipo === "mensal") {
         const progresso = calcularProgressoMensal(goal.nome, mesISO);
         sub = `${Math.min(progresso, goal.meta)}/${goal.meta} dias este mês${progresso >= goal.meta ? " ✅" : ""}`;
@@ -445,6 +458,17 @@ function renderGoals() {
       </div>`
       : "";
 
+  // Só os "semanal" têm esta escolha — por defeito (desmarcada) o goal expira
+  // ao fim da semana e tem de ser recriado; marcando, mantém-se sozinho.
+  const persistenteRowHtml =
+    novoGoalTipo === "semanal"
+      ? `
+      <label class="persistente-row">
+        <input type="checkbox" id="check-persistente" ${novoGoalPersistente ? "checked" : ""} />
+        <span>🔁 Manter este objetivo todas as semanas (até eu o remover)</span>
+      </label>`
+      : "";
+
   appContent.innerHTML = `
     <div class="view-goals">
       <h2 class="view-titulo">Goals de ${formatarMes(mesISO)}</h2>
@@ -459,6 +483,7 @@ function renderGoals() {
         <input type="text" id="input-novo-goal" placeholder="Ex: Beber 2L de água" maxlength="60" value="${escapeHtml(novoGoalTexto)}" />
         <div class="freq-row">${freqBtnsHtml}</div>
         <div id="qty-row-wrap">${qtyRowHtml}</div>
+        <div id="persistente-row-wrap">${persistenteRowHtml}</div>
         <button type="submit" class="btn-add">Adicionar</button>
       </form>`
           : `<p class="limit-note">Limite de ${LIMITE_GOALS} atingido — remove um goal para adicionar outro.</p>`
@@ -486,9 +511,17 @@ function renderGoals() {
       btn.addEventListener("click", () => {
         novoGoalTipo = btn.dataset.tipo;
         novoGoalMeta = novoGoalTipo === "semanal" ? 3 : Math.min(20, metaMaxima(novoGoalTipo, mesISO));
+        novoGoalPersistente = false; // trocar de tipo volta a começar do zero
         renderGoals();
       });
     });
+
+    const checkPersistente = document.getElementById("check-persistente");
+    if (checkPersistente) {
+      checkPersistente.addEventListener("change", () => {
+        novoGoalPersistente = checkPersistente.checked;
+      });
+    }
 
     const qtyMenos = document.getElementById("qty-menos");
     const qtyMais = document.getElementById("qty-mais");
@@ -508,12 +541,13 @@ function renderGoals() {
       if (!inputNovo.value.trim()) return;
 
       const meta = novoGoalTipo === "diario" ? null : novoGoalMeta;
-      adicionarGoal(inputNovo.value, novoGoalTipo, meta, mesISO);
+      adicionarGoal(inputNovo.value, novoGoalTipo, meta, mesISO, novoGoalPersistente);
 
       // Só aqui é que o formulário se limpa: o goal já foi mesmo criado.
       novoGoalTexto = "";
       novoGoalTipo = "diario";
       novoGoalMeta = 3;
+      novoGoalPersistente = false;
       sincronizarEstadoComServidor(); // novo goal pode mudar temGoalsSemanais/mensais
       renderGoals();
     });
@@ -580,7 +614,7 @@ function renderCheckin() {
 
   const itensSemanaisHtml = goalsSemanais
     .map((goal) =>
-      itemProgressoHtml(goal, contarOcorrenciasSemana(goal.nome, segundaISO), diasAteFimDaSemana(hoje), "dias")
+      itemProgressoHtml(goal, obterEstadoGoalSemanal(goal, segundaISO).feito, diasAteFimDaSemana(hoje), "dias")
     )
     .join("");
 
@@ -873,6 +907,11 @@ function formatarMes(mesISO) {
 
 /* ===== Arranque ===== */
 function iniciarApp() {
+  // Antes de tudo: se este é o primeiro acesso a um mês novo, transporta os
+  // goals "diario" do mês anterior sozinhos (semanais/mensais continuam a
+  // precisar de ser redefinidos manualmente).
+  garantirGoalsDoMesInicializados(obterMesAtualISO());
+
   aplicarAjustes(obterAjustes());
   atualizarStreak();
   atualizarStreakBadge();
