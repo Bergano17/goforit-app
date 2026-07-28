@@ -397,7 +397,7 @@ function ligarDetalheDia() {
       if (agoraCumprido && goal.tipo === "mensal") {
         const progresso = calcularProgressoMensal(nomeGoal, diaSelecionadoISO.slice(0, 7));
         if (progresso === goal.meta) {
-          celebrar(`🎉 Atingiste a meta mensal de "${nomeGoal}"!`);
+          celebrar(`🎉 Boa, continua assim! Objetivo mensal "${nomeGoal}" completo — precisas de o redefinir no mês que vem para continuares.`);
         } else if (progresso < goal.meta) {
           avisarQuantoFalta(nomeGoal, goal.meta - progresso, diasAteFimDoMes(diaSelecionadoISO) - 1);
         }
