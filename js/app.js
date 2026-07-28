@@ -385,7 +385,10 @@ function ligarDetalheDia() {
         const segunda = obterInicioDaSemanaISO(diaSelecionadoISO);
         const feito = contarOcorrenciasSemana(nomeGoal, segunda);
         if (feito >= goal.meta) {
-          celebrar(`🎉 Atingiste a meta semanal de "${nomeGoal}"!`);
+          const continuacao = goal.persistente
+            ? "continua para a semana que vem."
+            : "esta semana ficou feita — não se repete sozinho, cria um novo objetivo se quiseres continuar.";
+          celebrar(`🎉 Boa, continua assim! Objetivo semanal "${nomeGoal}" completo — ${continuacao}`);
         } else {
           avisarQuantoFalta(nomeGoal, goal.meta - feito, diasAteFimDaSemana(diaSelecionadoISO) - 1);
         }
