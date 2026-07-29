@@ -372,7 +372,7 @@ function alternarGoalNoDia(nomeGoal, dataISO = obterDataHojeISO()) {
   dados.checklist[dataISO][nomeGoal] = !dados.checklist[dataISO][nomeGoal];
   guardarDados(dados);
 
-  return atualizarStreak() > streakAntes;
+  return atualizarStreak().atual > streakAntes;
 }
 
 // O dia só olha para os goals que hoje são obrigatórios — os que ainda têm
@@ -432,14 +432,21 @@ function calcularStreakDiario() {
   return total;
 }
 
-// Recalcula e guarda o streak. Devolve o valor novo.
+// Recalcula e guarda o streak. Devolve { atual, quebrou }.
+//
+// "quebrou" (etapa 33) serve para a app conseguir acolher em vez de ficar
+// calada quando se perde uma sequência: compara o valor guardado da última
+// vez que isto correu ("anterior") com o valor novo — só é `true` na
+// primeira vez que se recalcula depois da quebra, porque a seguir o valor
+// guardado já reflete a quebra e deixa de haver diferença para detetar.
 function atualizarStreak() {
   const dados = carregarDados();
+  const anterior = dados.streak.atual || 0;
   const atual = calcularStreakDiario();
   dados.streak.atual = atual;
   if (atual > (dados.streak.recorde || 0)) dados.streak.recorde = atual;
   guardarDados(dados);
-  return atual;
+  return { atual, quebrou: anterior > 0 && atual < anterior };
 }
 
 // "classe" é o nome da classe CSS usada no badge do cabeçalho (ver style.css)
@@ -572,6 +579,10 @@ function construirEstadoParaServidor() {
     // interessa (um goal "persistente" já continua sozinho, não há nada a
     // redefinir).
     temGoalsSemanais: obterGoalsPorTipo(mesISO, "semanal").some((g) => !g.persistente),
+    // Ao contrário do semanal, um goal "mensal" NUNCA persiste sozinho de mês
+    // para mês (etapa 21) — por isso basta existir pelo menos um para valer
+    // a pena avisar que precisam de ser redefinidos no mês que vem.
+    temGoalsMensais: mensais.length > 0,
     semanais,
     mensais,
     resumoSemana: {

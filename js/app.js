@@ -955,8 +955,14 @@ function iniciarApp() {
   garantirGoalsDoMesInicializados(obterMesAtualISO());
 
   aplicarAjustes(obterAjustes());
-  atualizarStreak();
+  const resultadoStreak = atualizarStreak();
   atualizarStreakBadge();
+  // Etapa 33: em vez de silêncio total quando se perde uma sequência,
+  // acolhe de volta em vez de castigar — mesmo espírito "eficaz e relaxado"
+  // do resto da app.
+  if (resultadoStreak.quebrou) {
+    celebrar("💛 A sequência quebrou, mas o importante é continuar — hoje é um novo começo.");
+  }
   renderCalendario();
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
