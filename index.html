@@ -9,7 +9,22 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#FF6B35" />
   <link rel="icon" href="icons/icon-512.png" type="image/png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Ícone do ecrã principal no iPhone (etapa 38).
+       Ficheiro próprio, e não o icon-192, por duas razões:
+       1. O iOS NÃO suporta transparência aqui — pinta o que for transparente
+          de preto. O icon-192 tem os cantos arredondados transparentes; este
+          tem-nos preenchidos com o mesmo roxo do fundo.
+       2. 180x180 é o tamanho que o iOS procura; a dar-lhe outro, ele
+          redimensiona (ou desiste e inventa um ícone com a inicial). -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <!-- Abre em ecrã inteiro (sem barra do Safari) e fixa o nome que aparece
+       por baixo do ícone, em vez de usar o <title> da página. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GO FOR IT" />
 
   <!-- Fontes: Poppins (padrão) + Fredoka e Space Grotesk (opções no ecrã de Ajustes) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />

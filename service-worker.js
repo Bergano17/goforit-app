@@ -9,7 +9,7 @@
  * IMPORTANTE — sobe este número sempre que publicares uma versão nova da app.
  * É isso que faz o telemóvel deitar fora a cópia antiga e ir buscar a nova.
  */
-const CACHE_NAME = "goforit-cache-v15";
+const CACHE_NAME = "goforit-cache-v16";
 
 const FICHEIROS_PARA_CACHE = [
   "./index.html",
@@ -20,6 +20,7 @@ const FICHEIROS_PARA_CACHE = [
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  "./icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (evento) => {
